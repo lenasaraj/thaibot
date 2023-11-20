@@ -1,150 +1,95 @@
 import RPi.GPIO as GPIO
 import time
 
-# Define motor pins
+class RobotCar:
+    def __init__(self):
+        # Motor pin definitions
+        self.LEFT_IN1, self.LEFT_IN2, self.LEFT_PWM = 20, 21, 19
+        self.RIGHT_IN1, self.RIGHT_IN2, self.RIGHT_PWM = 24, 25, 12
+        self.LEFT_IN3_BACK, self.LEFT_IN4_BACK, self.LEFT_PWM2_BACK = 22, 23, 1
+        self.RIGHT_IN3_BACK, self.RIGHT_IN4_BACK, self.RIGHT_PWM2_BACK = 26, 27, 13
 
-#M2
-LEFT_IN1 = 20
-LEFT_IN2 = 21
-LEFT_PWM = 19
+        self.setup_gpio()
+        self.setup_pwm()
 
-#M3
-RIGHT_IN1 = 24
-RIGHT_IN2 = 25
-RIGHT_PWM = 12
+    def setup_gpio(self):
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
 
-#M1
-LEFT_IN3_BACK = 22
-LEFT_IN4_BACK = 23
-LEFT_PWM2_BACK = 1
+        # Setting up GPIO pins
+        motor_pins = [self.LEFT_IN1, self.LEFT_IN2, self.RIGHT_IN1, self.RIGHT_IN2,
+                      self.LEFT_IN3_BACK, self.LEFT_IN4_BACK, self.RIGHT_IN3_BACK, self.RIGHT_IN4_BACK]
+        for pin in motor_pins:
+            GPIO.setup(pin, GPIO.OUT)
 
-#M4
-RIGHT_IN3_BACK = 26
-RIGHT_IN4_BACK = 27
-RIGHT_PWM2_BACK = 13
+    def setup_pwm(self):
+        # Initializing PWM
+        self.left_pwm = GPIO.PWM(self.LEFT_PWM, 1000)
+        self.right_pwm = GPIO.PWM(self.RIGHT_PWM, 1000)
+        self.left_pwm2_back = GPIO.PWM(self.LEFT_PWM2_BACK, 1000)
+        self.right_pwm2_back = GPIO.PWM(self.RIGHT_PWM2_BACK, 1000)
 
+        self.left_pwm.start(0)
+        self.right_pwm.start(0)
+        self.left_pwm2_back.start(0)
+        self.right_pwm2_back.start(0)
 
-# Setup GPIO pins
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
-GPIO.setup(LEFT_IN1, GPIO.OUT)
-GPIO.setup(LEFT_IN2, GPIO.OUT)
-GPIO.setup(LEFT_PWM, GPIO.OUT)
+    def move_motors(self, left_in1, left_in2, right_in1, right_in2, 
+                    left_pwm_val, right_pwm_val, 
+                    left_in3_back, left_in4_back, right_in3_back, right_in4_back):
+        GPIO.output(self.LEFT_IN1, left_in1)
+        GPIO.output(self.LEFT_IN2, left_in2)
+        GPIO.output(self.RIGHT_IN1, right_in1)
+        GPIO.output(self.RIGHT_IN2, right_in2)
+        self.left_pwm.ChangeDutyCycle(left_pwm_val)
+        self.right_pwm.ChangeDutyCycle(right_pwm_val)
+        GPIO.output(self.LEFT_IN3_BACK, left_in3_back)
+        GPIO.output(self.LEFT_IN4_BACK, left_in4_back)
+        GPIO.output(self.RIGHT_IN3_BACK, right_in3_back)
+        GPIO.output(self.RIGHT_IN4_BACK, right_in4_back)
 
-GPIO.setup(RIGHT_IN1, GPIO.OUT)
-GPIO.setup(RIGHT_IN2, GPIO.OUT)
-GPIO.setup(RIGHT_PWM, GPIO.OUT)
+    def forward(self):
+        self.move_motors(GPIO.HIGH, GPIO.LOW, GPIO.HIGH, GPIO.LOW, 50, 50, GPIO.HIGH, GPIO.LOW, GPIO.HIGH, GPIO.LOW)
 
-GPIO.setup(LEFT_IN3_BACK, GPIO.OUT)
-GPIO.setup(LEFT_IN4_BACK, GPIO.OUT)
-GPIO.setup(LEFT_PWM2_BACK, GPIO.OUT)
+    def backward(self):
+        self.move_motors(GPIO.LOW, GPIO.HIGH, GPIO.LOW, GPIO.HIGH, 50, 50, GPIO.LOW, GPIO.HIGH, GPIO.LOW, GPIO.HIGH)
 
-GPIO.setup(RIGHT_IN3_BACK, GPIO.OUT)
-GPIO.setup(RIGHT_IN4_BACK, GPIO.OUT)
-GPIO.setup(RIGHT_PWM2_BACK, GPIO.OUT)
+    def turn_left(self):
+        self.move_motors(GPIO.LOW, GPIO.LOW, GPIO.HIGH, GPIO.LOW, 50, 0, GPIO.LOW, GPIO.LOW, GPIO.HIGH, GPIO.LOW)
 
-# Set initial motor direction and speed
-GPIO.output(LEFT_IN1, GPIO.LOW)
-GPIO.output(LEFT_IN2, GPIO.LOW)
-GPIO.output(RIGHT_IN1, GPIO.LOW)
-GPIO.output(RIGHT_IN2, GPIO.LOW)
-GPIO.output(LEFT_IN3_BACK, GPIO.LOW)
-GPIO.output(LEFT_IN4_BACK, GPIO.LOW)
-GPIO.output(RIGHT_IN3_BACK, GPIO.LOW)
-GPIO.output(RIGHT_IN4_BACK, GPIO.LOW)
-left_pwm = GPIO.PWM(LEFT_PWM, 1000)
-right_pwm = GPIO.PWM(RIGHT_PWM, 1000)
-left_pwm.start(0)
-right_pwm.start(0)
+    def turn_right(self):
+        self.move_motors(GPIO.HIGH, GPIO.LOW, GPIO.LOW, GPIO.LOW, 0, 50, GPIO.HIGH, GPIO.LOW, GPIO.LOW, GPIO.LOW)
 
-left_pwm2_back = GPIO.PWM(LEFT_PWM, 1000)
-right_pwm2_back = GPIO.PWM(RIGHT_PWM, 1000)
-left_pw2_back.start(0)
-right_pwm2_back.start(0)
+    def stop(self):
+        self.move_motors(GPIO.LOW, GPIO.LOW, GPIO.LOW, GPIO.LOW, 0, 0, GPIO.LOW, GPIO.LOW, GPIO.LOW, GPIO.LOW)
 
-# Define motor control functions
-def stop_motors():
-    left_pwm.ChangeDutyCycle(0)
-    right_pwm.ChangeDutyCycle(0)
-    left_pwm2_back.ChangeDutyCycle(0)
-    right_pwm2_back.ChangeDutyCycle(0)
+    def cleanup(self):
+        self.left_pwm.stop()
+        self.right_pwm.stop()
+        self.left_pwm2_back.stop()
+        self.right_pwm2_back.stop()
+        GPIO.cleanup()
 
-def forward():
-    GPIO.output(LEFT_IN1, GPIO.HIGH)
-    GPIO.output(LEFT_IN2, GPIO.LOW)
-    GPIO.output(RIGHT_IN1, GPIO.HIGH)
-    GPIO.output(RIGHT_IN2, GPIO.LOW)
-    GPIO.output(LEFT_IN3_BACK, GPIO.HIGH)
-    GPIO.output(LEFT_IN4_BACK, GPIO.LOW)
-    GPIO.output(RIGHT_IN3_BACK, GPIO.HIGH)
-    GPIO.output(RIGHT_IN4_BACK, GPIO.LOW)
-
-def backward():
-    GPIO.output(LEFT_IN1, GPIO.LOW)
-    GPIO.output(LEFT_IN2, GPIO.HIGH)
-    GPIO.output(RIGHT_IN1, GPIO.LOW)
-    GPIO.output(RIGHT_IN2, GPIO.HIGH)
-    GPIO.output(LEFT_IN3_BACK, GPIO.LOW)
-    GPIO.output(LEFT_IN4_BACK, GPIO.HIGH)
-    GPIO.output(RIGHT_IN3_BACK, GPIO.LOW)
-    GPIO.output(RIGHT_IN4_BACK, GPIO.HIGH)
-
-def turn_left():
-    GPIO.output(LEFT_IN1, GPIO.LOW)
-    GPIO.output(LEFT_IN2, GPIO.LOW)
-    GPIO.output(RIGHT_IN1, GPIO.HIGH)
-    GPIO.output(RIGHT_IN2, GPIO.LOW)
-    GPIO.output(LEFT_IN3_BACK, GPIO.LOW)
-    GPIO.output(LEFT_IN4_BACK, GPIO.LOW)
-    GPIO.output(RIGHT_IN3_BACK, GPIO.HIGH)
-    GPIO.output(RIGHT_IN4_BACK, GPIO.LOW)
-
-def turn_right():
-    GPIO.output(LEFT_IN1, GPIO.HIGH)
-    GPIO.output(LEFT_IN2, GPIO.LOW)
-    GPIO.output(RIGHT_IN1, GPIO.LOW)
-    GPIO.output(RIGHT_IN2, GPIO.LOW)
-    GPIO.output(LEFT_IN3_BACK, GPIO.HIGH)
-    GPIO.output(LEFT_IN4_BACK, GPIO.LOW)
-    GPIO.output(RIGHT_IN3_BACK, GPIO.LOW)
-    GPIO.output(RIGHT_IN4_BACK, GPIO.LOW)
+# Create robot car instance
+robot_car = RobotCar()
 
 # Listen for keyboard input
-while True:
-    try:
-        c = input()
+try:
+    while True:
+        c = input("Enter command (w/s/a/d/x): ").strip().lower()
         if c == 'w':
-            forward()
-            left_pwm.ChangeDutyCycle(50)
-            right_pwm.ChangeDutyCycle(50)
-            left_pwm2_back.ChangeDutyCycle(50)
-            right_pwm2_back.ChangeDutyCycle(50)
+            robot_car.forward()
         elif c == 's':
-            backward()
-            left_pwm.ChangeDutyCycle(50)
-            right_pwm.ChangeDutyCycle(50)
-            left_pwm2_back.ChangeDutyCycle(50)
-            right_pwm2_back.ChangeDutyCycle(50)
+            robot_car.backward()
         elif c == 'a':
-            turn_left()
-            left_pwm.ChangeDutyCycle(50)
-            right_pwm.ChangeDutyCycle(0)
-            left_pwm2_back.ChangeDutyCycle(50)
-            right_pwm2_back.ChangeDutyCycle(0)
+            robot_car.turn_left()
         elif c == 'd':
-            turn_right()
-            left_pwm.ChangeDutyCycle(0)
-            right_pwm.ChangeDutyCycle(50)
-            left_pwm2_back.ChangeDutyCycle(0)
-            right_pwm2_back.ChangeDutyCycle(50)
+            robot_car.turn_right()
         elif c == 'x':
-            stop_motors()
+            robot_car.stop()
         else:
-            print("Invalid input, please enter w, s, a, d or x.")
-    except KeyboardInterrupt:
-        break
-
-# Clean up GPIO pins and stop PWM
-left_pwm.stop()
-right_pwm.stop()
-GPIO.cleanup()
+            print("Invalid input, please enter w, s, a, d, or x.")
+except KeyboardInterrupt:
+    print("Exiting program...")
+finally:
+    robot_car.cleanup()
